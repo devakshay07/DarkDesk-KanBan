@@ -92,9 +92,39 @@ export function useWorkspace(userId?: string) {
       })
       .subscribe();
 
+    // 3. Automatic Background Polling (Every 8s when active) & Tab Focus Listener
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      if (isMounted && typeof document !== "undefined" && !document.hidden) {
+        await pullRemoteWorkspace(client, userId);
+      }
+      if (isMounted) {
+        timerId = setTimeout(poll, 8000);
+      }
+    };
+
+    timerId = setTimeout(poll, 8000);
+
+    const handleFocusOrVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        pullRemoteWorkspace(client, userId);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocusOrVisibility);
+      document.addEventListener("visibilitychange", handleFocusOrVisibility);
+    }
+
     return () => {
       isMounted = false;
       client.removeChannel(channel);
+      clearTimeout(timerId);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocusOrVisibility);
+        document.removeEventListener("visibilitychange", handleFocusOrVisibility);
+      }
     };
   }, [userId, pullRemoteWorkspace]);
 
