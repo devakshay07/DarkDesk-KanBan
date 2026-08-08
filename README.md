@@ -7,12 +7,6 @@
 
 > A sleek, high-performance personal & multi-device Kanban workspace built with **Next.js 15**, **TypeScript**, and **Supabase**. DarkDesk provides a tactile, dark-mode board interface with instant local responsiveness and effortless real-time sync across all your devices.
 
----
-
-## 📸 Preview
-
-![DarkDesk Kanban Workspace](public/screenshots/darkdesk-preview.png)
-
 *Live Application:* **[https://darkdesk.netlify.app](https://darkdesk.netlify.app)**
 
 ---
@@ -83,8 +77,6 @@ To enable multi-device sync and cloud backup:
 
 DarkDesk is pre-configured for seamless deployment on **Netlify** using native Next.js 15 runtime detection.
 
-![Netlify Build Configuration](public/screenshots/netlify-deployment.png)
-
 ### Steps to Deploy:
 1. Push your repository to GitHub.
 2. Import the project into [Netlify](https://app.netlify.com).
@@ -117,8 +109,7 @@ DarkDesk-KanBan/
 ├── database/             # Supabase schema & RLS policies (schema.sql)
 ├── features/kanban/      # Board workspace, columns, cards, and modals
 ├── hooks/                # Custom hooks (useWorkspace with Realtime & polling)
-├── lib/                  # Sync engine, local storage, seed data & helpers
-└── public/screenshots/   # App preview & deployment assets
+└── lib/                  # Sync engine, local storage, seed data & helpers
 ```
 
 ---
