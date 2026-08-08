@@ -8,8 +8,9 @@ type AuthState = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string, name?: string) => Promise<string | null>;
   signInWithMagicLink: (email: string) => Promise<string | null>;
+  updateProfile: (name: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthState>({
   signIn: async () => null,
   signUp: async () => null,
   signInWithMagicLink: async () => null,
+  updateProfile: async () => null,
   signOut: async () => {},
 });
 
@@ -57,13 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error?.message ?? null;
   }
 
-  async function signUp(email: string, password: string): Promise<string | null> {
+  async function signUp(email: string, password: string, name?: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+    const trimmedName = name?.trim();
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        data: trimmedName ? { name: trimmedName, full_name: trimmedName } : undefined,
+        emailRedirectTo: redirectTo,
+      },
     });
     return error?.message ?? null;
   }
@@ -78,6 +84,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error?.message ?? null;
   }
 
+  async function updateProfile(name: string): Promise<string | null> {
+    if (!supabase) return "Supabase is not configured";
+    const trimmedName = name.trim();
+    const { data, error } = await supabase.auth.updateUser({
+      data: { name: trimmedName, full_name: trimmedName },
+    });
+    if (!error && data.user) {
+      setUser(data.user);
+    }
+    return error?.message ?? null;
+  }
+
   async function signOut() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("darkdesk-workspace-v1");
@@ -88,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithMagicLink, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithMagicLink, updateProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

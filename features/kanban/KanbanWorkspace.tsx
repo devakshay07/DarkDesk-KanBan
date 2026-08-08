@@ -41,7 +41,7 @@ function SyncBadge({ status }: { status: SyncStatus }) {
 
 /** Orchestrates independent Kanban components and persistence operations. */
 export function KanbanWorkspace() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, updateProfile } = useAuth();
   const router = useRouter();
   const { workspace, activeBoard, commit, updateBoard, undo, canUndo, syncStatus } = useWorkspace(user?.id);
   
@@ -76,7 +76,19 @@ export function KanbanWorkspace() {
   const allTasks = currentBoard.columns.flatMap((column) => column.tasks);
   const completedCount = allTasks.filter((task) => task.completed).length;
 
-  const displayName = user?.user_metadata?.name || user?.email?.split("@")[0] || (currentWorkspace as Workspace & { userName?: string }).userName || "Akshay";
+  const userMetaName = user?.user_metadata?.name || user?.user_metadata?.full_name;
+  let displayName = "Friend";
+  if (userMetaName && typeof userMetaName === "string" && userMetaName.trim()) {
+    displayName = userMetaName.trim();
+  } else if (user?.email) {
+    const handle = user.email.split("@")[0] || "";
+    displayName = handle
+      .split(/[._-]/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  } else if ((currentWorkspace as Workspace & { userName?: string }).userName) {
+    displayName = (currentWorkspace as Workspace & { userName?: string }).userName!;
+  }
 
   function replaceBoard(board: Board) { updateBoard(board); }
   function openNewTask(columnId: string) { setEditor({ columnId, task: createTask() }); }
@@ -191,12 +203,15 @@ export function KanbanWorkspace() {
       <SettingsModal
         workspace={currentWorkspace}
         activeBoard={currentBoard}
+        userName={displayName}
+        userEmail={user?.email}
         onClose={() => setShowSettings(false)}
         onExport={exportWorkspace}
         onImport={importWorkspace}
         onRenameBoard={handleRenameBoard}
         onDeleteBoard={handleDeleteBoard}
         onResetWorkspace={() => commit(initialWorkspace)}
+        onUpdateName={updateProfile}
       />
     )}
   </main>;

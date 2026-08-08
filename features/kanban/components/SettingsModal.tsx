@@ -1,29 +1,35 @@
 "use client";
 
 import { useEffect } from "react";
-import { Download, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { Download, RefreshCw, Trash2, Upload, User as UserIcon, X } from "lucide-react";
 import type { Board, Workspace } from "../../../types/kanban";
 
 type SettingsModalProps = {
   workspace: Workspace;
   activeBoard: Board;
+  userName?: string;
+  userEmail?: string;
   onClose: () => void;
   onExport: () => void;
   onImport: (file?: File) => void;
   onRenameBoard: (boardId: string, newTitle: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onResetWorkspace: () => void;
+  onUpdateName?: (newName: string) => void;
 };
 
 export function SettingsModal({
   workspace,
   activeBoard,
+  userName,
+  userEmail,
   onClose,
   onExport,
   onImport,
   onRenameBoard,
   onDeleteBoard,
   onResetWorkspace,
+  onUpdateName,
 }: SettingsModalProps) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -48,6 +54,33 @@ export function SettingsModal({
             <X />
           </button>
         </div>
+
+        {userEmail && (
+          <section className="settings-section">
+            <h3>Profile</h3>
+            <div className="settings-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <UserIcon style={{ opacity: 0.7 }} />
+                <div>
+                  <strong>{userName || "No name set"}</strong>
+                  <span style={{ display: "block", fontSize: "0.82rem", opacity: 0.7 }}>{userEmail}</span>
+                </div>
+              </div>
+              {onUpdateName && (
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={() => {
+                    const name = window.prompt("Update your name", userName || "");
+                    if (name !== null && name.trim()) onUpdateName(name.trim());
+                  }}
+                >
+                  Edit Name
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="settings-section">
           <h3>Current Board: {activeBoard.title}</h3>

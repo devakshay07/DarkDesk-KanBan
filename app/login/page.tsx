@@ -9,6 +9,7 @@ export default function LoginPage() {
   const { user, loading, signIn, signUp, signInWithMagicLink } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "magic">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export default function LoginPage() {
         result = await signInWithMagicLink(email);
         if (!result) setMessage("Check your email for a login link!");
       } else if (mode === "signup") {
-        result = await signUp(email, password);
+        result = await signUp(email, password, name);
         if (!result) setMessage("Account created! Check your email to confirm, then sign in.");
       } else {
         result = await signIn(email, password);
@@ -90,6 +91,20 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {mode === "signup" && (
+            <label>
+              Full Name
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Alex Smith"
+                required
+                autoFocus
+              />
+            </label>
+          )}
+
           <label>
             Email
             <input
@@ -98,7 +113,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              autoFocus
+              autoFocus={mode !== "signup"}
             />
           </label>
 
