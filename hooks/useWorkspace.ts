@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadWorkspace, saveWorkspace } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { fetchWorkspace, uploadWorkspace } from "../lib/supabase-sync";
+import { normalizeWorkspaceUUIDs } from "../lib/kanban";
 import type { Board, Workspace } from "../types/kanban";
 
 export type SyncStatus = "synced" | "syncing" | "offline" | "error";
@@ -19,8 +20,9 @@ export function useWorkspace(userId?: string) {
     try {
       const remote = await fetchWorkspace(client, uid);
       if (remote && remote.boards.length > 0) {
-        setWorkspace(remote);
-        saveWorkspace(remote);
+        const normalized = normalizeWorkspaceUUIDs(remote);
+        setWorkspace(normalized);
+        saveWorkspace(normalized);
         setSyncStatus("synced");
         return true;
       }
@@ -36,7 +38,7 @@ export function useWorkspace(userId?: string) {
     const client = supabase;
     if (!client || !userId) {
       // Offline / Local mode
-      setWorkspace(loadWorkspace());
+      setWorkspace(normalizeWorkspaceUUIDs(loadWorkspace()));
       setSyncStatus("offline");
       return;
     }
@@ -50,17 +52,19 @@ export function useWorkspace(userId?: string) {
 
       if (remote && remote.boards.length > 0) {
         // Remote data exists - use it on this device
-        setWorkspace(remote);
-        saveWorkspace(remote);
+        const normalized = normalizeWorkspaceUUIDs(remote);
+        setWorkspace(normalized);
+        saveWorkspace(normalized);
         setSyncStatus("synced");
       } else {
         // Remote data is empty - check if local workspace needs migration
-        const local = loadWorkspace();
+        const local = normalizeWorkspaceUUIDs(loadWorkspace());
         if (local && local.boards.length > 0) {
           try {
             await uploadWorkspace(client, local, userId);
             if (isMounted) {
               setWorkspace(local);
+              saveWorkspace(local);
               setSyncStatus("synced");
             }
           } catch (err) {
@@ -117,7 +121,8 @@ export function useWorkspace(userId?: string) {
     }
   }, [userId]);
 
-  function commit(next: Workspace) {
+  function commit(rawNext: Workspace) {
+    const next = normalizeWorkspaceUUIDs(rawNext);
     if (workspace) setHistory((items) => [...items.slice(-19), workspace]);
     setWorkspace(next);
     if (userId) syncToCloud(next);

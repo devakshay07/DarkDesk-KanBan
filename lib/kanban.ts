@@ -103,3 +103,39 @@ export function isWorkspace(value: unknown): value is Workspace {
   return Array.isArray(candidate.boards) && Array.isArray(candidate.labels)
     && typeof candidate.activeBoardId === "string";
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Converts legacy non-UUID string IDs (e.g. 'personal', 't1') to valid RFC4122 UUIDs. */
+export function normalizeWorkspaceUUIDs(workspace: Workspace): Workspace {
+  const idMap = new Map<string, string>();
+
+  function getValidId(originalId: string): string {
+    if (UUID_REGEX.test(originalId)) return originalId;
+    if (!idMap.has(originalId)) {
+      idMap.set(originalId, crypto.randomUUID());
+    }
+    return idMap.get(originalId)!;
+  }
+
+  const updatedBoards: Board[] = workspace.boards.map((board) => ({
+    ...board,
+    id: getValidId(board.id),
+    columns: board.columns.map((col) => ({
+      ...col,
+      id: getValidId(col.id),
+      tasks: col.tasks.map((task) => ({
+        ...task,
+        id: getValidId(task.id),
+      })),
+    })),
+  }));
+
+  const activeBoardId = getValidId(workspace.activeBoardId);
+
+  return {
+    ...workspace,
+    activeBoardId,
+    boards: updatedBoards,
+  };
+}
