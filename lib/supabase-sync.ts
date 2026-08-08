@@ -115,13 +115,53 @@ export async function syncAllCards(
   if (error) console.error("[Sync] upsert cards:", error);
 }
 
-// ── Full workspace sync (upload local state to Supabase) ───────────────
+// ── Full workspace sync with reconciliation (upsert active + delete removed) ──
 
 export async function uploadWorkspace(
   client: SupabaseClient,
   workspace: Workspace,
   userId: string,
 ) {
+  // Collect all active IDs from memory
+  const activeBoardIds = new Set(workspace.boards.map((b) => b.id));
+  const activeColumnIds = new Set(workspace.boards.flatMap((b) => b.columns.map((c) => c.id)));
+  const activeCardIds = new Set(workspace.boards.flatMap((b) => b.columns.flatMap((c) => c.tasks.map((t) => t.id))));
+
+  // Fetch existing IDs from DB to detect deletions
+  const { data: existingBoards } = await client.from("boards").select("id").eq("user_id", userId);
+  const existingBoardIds = (existingBoards ?? []).map((b) => b.id);
+
+  let existingColIds: string[] = [];
+  if (existingBoardIds.length > 0) {
+    const { data: cols } = await client.from("columns").select("id").in("board_id", existingBoardIds);
+    existingColIds = (cols ?? []).map((c) => c.id);
+  }
+
+  let existingCardIds: string[] = [];
+  if (existingColIds.length > 0) {
+    const { data: cards } = await client.from("cards").select("id").in("column_id", existingColIds);
+    existingCardIds = (cards ?? []).map((c) => c.id);
+  }
+
+  // 1. Delete removed cards
+  const cardsToDelete = existingCardIds.filter((id) => !activeCardIds.has(id));
+  if (cardsToDelete.length > 0) {
+    await client.from("cards").delete().in("id", cardsToDelete);
+  }
+
+  // 2. Delete removed columns
+  const colsToDelete = existingColIds.filter((id) => !activeColumnIds.has(id));
+  if (colsToDelete.length > 0) {
+    await client.from("columns").delete().in("id", colsToDelete);
+  }
+
+  // 3. Delete removed boards
+  const boardsToDelete = existingBoardIds.filter((id) => !activeBoardIds.has(id));
+  if (boardsToDelete.length > 0) {
+    await client.from("boards").delete().in("id", boardsToDelete);
+  }
+
+  // 4. Upsert active boards, columns, and cards
   for (let bi = 0; bi < workspace.boards.length; bi++) {
     const board = workspace.boards[bi];
     await syncBoard(client, board, userId, bi, workspace.labels);

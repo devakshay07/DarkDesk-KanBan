@@ -3,50 +3,70 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadWorkspace, saveWorkspace } from "../lib/storage";
 import { supabase } from "../lib/supabase";
-import { fetchWorkspace, syncBoardUpdate, uploadWorkspace } from "../lib/supabase-sync";
+import { fetchWorkspace, uploadWorkspace } from "../lib/supabase-sync";
 import type { Board, Workspace } from "../types/kanban";
 
 export type SyncStatus = "synced" | "syncing" | "offline" | "error";
 
-/** Local-first workspace state with optional Supabase cloud synchronization. */
+/** Local-first workspace state with optional Supabase cloud synchronization & realtime multi-device sync. */
 export function useWorkspace(userId?: string) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [history, setHistory] = useState<Workspace[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(supabase ? "synced" : "offline");
 
-  // Load initial local workspace
-  useEffect(() => {
-    const local = loadWorkspace();
-    setWorkspace(local);
+  // Helper to pull fresh remote data
+  const pullRemoteWorkspace = useCallback(async (client: NonNullable<typeof supabase>, uid: string) => {
+    try {
+      const remote = await fetchWorkspace(client, uid);
+      if (remote && remote.boards.length > 0) {
+        setWorkspace(remote);
+        saveWorkspace(remote);
+        setSyncStatus("synced");
+        return true;
+      }
+    } catch (err) {
+      console.error("[Workspace] Pull remote failed:", err);
+      setSyncStatus("error");
+    }
+    return false;
   }, []);
 
   // Fetch or migrate remote workspace when userId is present
   useEffect(() => {
     const client = supabase;
-    if (!client || !userId) return;
+    if (!client || !userId) {
+      // Offline / Local mode
+      setWorkspace(loadWorkspace());
+      setSyncStatus("offline");
+      return;
+    }
 
     let isMounted = true;
     setSyncStatus("syncing");
 
+    // 1. Fetch remote workspace from Supabase
     fetchWorkspace(client, userId).then(async (remote) => {
       if (!isMounted) return;
+
       if (remote && remote.boards.length > 0) {
+        // Remote data exists - use it on this device
         setWorkspace(remote);
         saveWorkspace(remote);
         setSyncStatus("synced");
       } else {
-        // Migration: upload local workspace to Supabase for the new user
+        // Remote data is empty - check if local workspace needs migration
         const local = loadWorkspace();
         if (local && local.boards.length > 0) {
           try {
             await uploadWorkspace(client, local, userId);
-            if (isMounted) setSyncStatus("synced");
+            if (isMounted) {
+              setWorkspace(local);
+              setSyncStatus("synced");
+            }
           } catch (err) {
             console.error("[Workspace] Migration failed:", err);
             if (isMounted) setSyncStatus("error");
           }
-        } else {
-          if (isMounted) setSyncStatus("synced");
         }
       }
     }).catch((err) => {
@@ -54,8 +74,25 @@ export function useWorkspace(userId?: string) {
       if (isMounted) setSyncStatus("error");
     });
 
-    return () => { isMounted = false; };
-  }, [userId]);
+    // 2. Realtime Multi-Device Sync Subscription
+    const channel = client
+      .channel(`user-sync-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "boards" }, () => {
+        pullRemoteWorkspace(client, userId);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "columns" }, () => {
+        pullRemoteWorkspace(client, userId);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cards" }, () => {
+        pullRemoteWorkspace(client, userId);
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      client.removeChannel(channel);
+    };
+  }, [userId, pullRemoteWorkspace]);
 
   // Persist to local storage whenever workspace changes
   useEffect(() => {

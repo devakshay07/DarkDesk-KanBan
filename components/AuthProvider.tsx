@@ -70,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("darkdesk-workspace-v1");
+    }
     if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
