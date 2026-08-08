@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadWorkspace, saveWorkspace } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { fetchWorkspace, uploadWorkspace } from "../lib/supabase-sync";
@@ -15,8 +15,14 @@ export function useWorkspace(userId?: string) {
   const [history, setHistory] = useState<Workspace[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(supabase ? "synced" : "offline");
 
-  // Helper to pull fresh remote data
+  // Guard: skip Realtime/poll pulls while this device is uploading
+  const isSyncingRef = useRef(false);
+  // Debounce timer for cloud sync
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Helper to pull fresh remote data (skipped when this device is uploading)
   const pullRemoteWorkspace = useCallback(async (client: NonNullable<typeof supabase>, uid: string) => {
+    if (isSyncingRef.current) return false; // Skip self-echo
     try {
       const remote = await fetchWorkspace(client, uid);
       if (remote && remote.boards.length > 0) {
@@ -51,16 +57,15 @@ export function useWorkspace(userId?: string) {
       if (!isMounted) return;
 
       if (remote && remote.boards.length > 0) {
-        // Remote data exists - use it on this device
         const normalized = normalizeWorkspaceUUIDs(remote);
         setWorkspace(normalized);
         saveWorkspace(normalized);
         setSyncStatus("synced");
       } else {
-        // Remote data is empty - check if local workspace needs migration
         const local = normalizeWorkspaceUUIDs(loadWorkspace());
         if (local && local.boards.length > 0) {
           try {
+            isSyncingRef.current = true;
             await uploadWorkspace(client, local, userId);
             if (isMounted) {
               setWorkspace(local);
@@ -70,6 +75,9 @@ export function useWorkspace(userId?: string) {
           } catch (err) {
             console.error("[Workspace] Migration failed:", err);
             if (isMounted) setSyncStatus("error");
+          } finally {
+            // Allow pulls again after a cooldown so Realtime self-echoes settle
+            setTimeout(() => { isSyncingRef.current = false; }, 2000);
           }
         }
       }
@@ -92,7 +100,7 @@ export function useWorkspace(userId?: string) {
       })
       .subscribe();
 
-    // 3. Automatic Background Polling (Every 8s when active) & Tab Focus Listener
+    // 3. Background Polling (every 30s when tab is visible) as fallback
     let timerId: ReturnType<typeof setTimeout>;
 
     const poll = async () => {
@@ -100,12 +108,13 @@ export function useWorkspace(userId?: string) {
         await pullRemoteWorkspace(client, userId);
       }
       if (isMounted) {
-        timerId = setTimeout(poll, 8000);
+        timerId = setTimeout(poll, 30000);
       }
     };
 
-    timerId = setTimeout(poll, 8000);
+    timerId = setTimeout(poll, 30000);
 
+    // 4. Instant sync on tab focus (user returns to the app)
     const handleFocusOrVisibility = () => {
       if (typeof document !== "undefined" && !document.hidden) {
         pullRemoteWorkspace(client, userId);
@@ -138,17 +147,28 @@ export function useWorkspace(userId?: string) {
     [workspace],
   );
 
-  const syncToCloud = useCallback(async (nextWorkspace: Workspace) => {
+  // Debounced cloud sync: waits 500ms after the last call before uploading
+  const syncToCloud = useCallback((nextWorkspace: Workspace) => {
     const client = supabase;
     if (!client || !userId) return;
+
+    // Clear any pending debounce
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+
     setSyncStatus("syncing");
-    try {
-      await uploadWorkspace(client, nextWorkspace, userId);
-      setSyncStatus("synced");
-    } catch (err) {
-      console.error("[Workspace] Cloud sync failed:", err);
-      setSyncStatus("error");
-    }
+    syncTimerRef.current = setTimeout(async () => {
+      isSyncingRef.current = true;
+      try {
+        await uploadWorkspace(client, nextWorkspace, userId);
+        setSyncStatus("synced");
+      } catch (err) {
+        console.error("[Workspace] Cloud sync failed:", err);
+        setSyncStatus("error");
+      } finally {
+        // Allow pulls again after Realtime self-echoes settle
+        setTimeout(() => { isSyncingRef.current = false; }, 2000);
+      }
+    }, 500);
   }, [userId]);
 
   function commit(rawNext: Workspace) {

@@ -6,7 +6,7 @@ import { useAuth } from "../../components/AuthProvider";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, signIn, signUp, signInWithMagicLink } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "magic">("signin");
   const [email, setEmail] = useState("");
@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { signIn, signUp, signInWithMagicLink } = useAuth();
 
   // If Supabase isn't configured, skip login
   if (!supabase) {

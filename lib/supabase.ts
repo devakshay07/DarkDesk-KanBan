@@ -11,12 +11,3 @@ if (!supabase && typeof window !== "undefined") {
   console.warn("[DarkDesk] Supabase is not configured. Running in local-only mode. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local to enable cloud sync.");
 }
 
-export async function deleteCardFromSupabase(cardId: string) {
-  if (!supabase) return;
-  try {
-    const { error } = await supabase.from("cards").delete().eq("id", cardId);
-    if (error) console.error("Supabase delete error:", error);
-  } catch (err) {
-    console.error("Supabase connection error:", err);
-  }
-}
