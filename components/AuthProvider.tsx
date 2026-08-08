@@ -59,13 +59,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUp(email: string, password: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
-    const { error } = await supabase.auth.signUp({ email, password });
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: redirectTo },
+    });
     return error?.message ?? null;
   }
 
   async function signInWithMagicLink(email: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
     return error?.message ?? null;
   }
 
