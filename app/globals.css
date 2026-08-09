@@ -103,3 +103,57 @@ header { display: flex; align-items: center; justify-content: space-between; min
 @media (max-width: 42rem) { .content { padding-block-start: 1.6rem; }.progress-card { display: none; }.toolbar { margin-block-start: 1.6rem; }.search { flex-basis: 100%; }.tool-actions { inline-size: 100%; }.tool-actions button { flex: 1 1 auto; justify-content: center; }.board { grid-template-columns: 1fr; }.column { min-block-size: auto; }.filters { align-items: stretch; }.filter-spacer { display: none; }.filters > span { flex-basis: 100%; }.move-actions button { padding: .5rem; }.move-actions svg { inline-size: 1.1rem; block-size: 1.1rem; }.task { padding: 1rem; }.check { inline-size: 1.25rem; block-size: 1.25rem; }.add-card { min-block-size: 2.75rem; font-size: .75rem; }.modal-actions button { min-block-size: 2.75rem; padding-inline: 1rem; } }
 @media (min-width: 30rem) and (max-width: 42rem) { .board { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* Dynamic Floating Branding Footer */
+.branding-footer {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.branding-footer.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.branding-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.44rem 0.94rem;
+  color: #a2aab0;
+  border: 0.0625rem solid #2b3135;
+  border-radius: 2rem;
+  background: rgba(16, 17, 18, 0.85);
+  backdrop-filter: blur(0.75rem);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4), inset 0 0.0625rem rgba(255, 255, 255, 0.05);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.branding-logo {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.branding-tag {
+  color: var(--lime);
+  font-weight: 700;
+}
+
+.branding-dot {
+  color: #4a5257;
+  font-size: 0.6rem;
+}
+
+.branding-text {
+  color: #899196;
+}

@@ -15,6 +15,7 @@ import { useWorkspace, type SyncStatus } from "../../hooks/useWorkspace";
 import { useAuth } from "../../components/AuthProvider";
 import type { Board, Priority, Task, Workspace } from "../../types/kanban";
 import { Logo } from "../../components/Logo";
+import { BrandingFooter } from "../../components/BrandingFooter";
 
 type TaskEditor = { columnId: string; task: Task } | null;
 
@@ -214,5 +215,6 @@ export function KanbanWorkspace() {
         onUpdateName={updateProfile}
       />
     )}
+    <BrandingFooter />
   </main>;
 }
