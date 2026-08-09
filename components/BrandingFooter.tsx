@@ -37,7 +37,11 @@ export function BrandingFooter() {
       <div className="branding-pill">
         <span className="branding-logo"><span style={{ color: "var(--lime)", marginRight: "0.25rem" }}>◆</span>DarkDesk</span>
         <span className="branding-dot">•</span>
-        <span className="branding-text">Crafted with Next.js & Supabase</span>
+        <span className="branding-text">by <strong style={{ color: "var(--text)", fontWeight: 700 }}>Akshay Bhagat</strong></span>
+        <span className="branding-dot">•</span>
+        <a href="mailto:ab6790332@gmail.com" className="branding-email">ab6790332@gmail.com</a>
+        <span className="branding-dot">•</span>
+        <span className="branding-text">Next.js & Supabase</span>
         <span className="branding-dot">•</span>
         <span className="branding-tag">v1.0</span>
       </div>

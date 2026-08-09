@@ -157,3 +157,15 @@ header { display: flex; align-items: center; justify-content: space-between; min
 .branding-text {
   color: #899196;
 }
+
+.branding-email {
+  color: #a2aab0;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.branding-email:hover {
+  color: var(--lime);
+  text-decoration: underline;
+}
+
