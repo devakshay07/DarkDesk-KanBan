@@ -115,14 +115,14 @@ export async function syncAllCards(
   if (error) console.error("[Sync] upsert cards:", error);
 }
 
-// ── Full workspace sync with reconciliation (upsert active + delete removed) ──
+// ── Full workspace sync with batch operations & reconciliation ──────────
 
 export async function uploadWorkspace(
   client: SupabaseClient,
   workspace: Workspace,
   userId: string,
 ) {
-  // Collect all active IDs from memory
+  // Collect active IDs from current state
   const activeBoardIds = new Set(workspace.boards.map((b) => b.id));
   const activeColumnIds = new Set(workspace.boards.flatMap((b) => b.columns.map((c) => c.id)));
   const activeCardIds = new Set(workspace.boards.flatMap((b) => b.columns.flatMap((c) => c.tasks.map((t) => t.id))));
@@ -161,17 +161,31 @@ export async function uploadWorkspace(
     await client.from("boards").delete().in("id", boardsToDelete);
   }
 
-  // 4. Upsert active boards, columns, and cards
-  for (let bi = 0; bi < workspace.boards.length; bi++) {
-    const board = workspace.boards[bi];
-    await syncBoard(client, board, userId, bi, workspace.labels);
-    for (let ci = 0; ci < board.columns.length; ci++) {
-      const column = board.columns[ci];
-      await syncColumn(client, column, board.id, ci);
-      for (let ti = 0; ti < column.tasks.length; ti++) {
-        await syncCard(client, column.tasks[ti], column.id, ti);
-      }
-    }
+  // 4. Batch upsert active boards
+  const boardRows = workspace.boards.map((b, bi) => boardToDbBoard(b, userId, bi, workspace.labels));
+  if (boardRows.length > 0) {
+    const { error } = await client.from("boards").upsert(boardRows, { onConflict: "id" });
+    if (error) console.error("[Sync] batch upsert boards error:", error);
+  }
+
+  // 5. Batch upsert active columns
+  const colRows = workspace.boards.flatMap((b) =>
+    b.columns.map((c, ci) => columnToDbColumn(c, b.id, ci))
+  );
+  if (colRows.length > 0) {
+    const { error } = await client.from("columns").upsert(colRows, { onConflict: "id" });
+    if (error) console.error("[Sync] batch upsert columns error:", error);
+  }
+
+  // 6. Batch upsert active cards
+  const cardRows = workspace.boards.flatMap((b) =>
+    b.columns.flatMap((c) =>
+      c.tasks.map((t, ti) => taskToDbCard(t, c.id, ti))
+    )
+  );
+  if (cardRows.length > 0) {
+    const { error } = await client.from("cards").upsert(cardRows, { onConflict: "id" });
+    if (error) console.error("[Sync] batch upsert cards error:", error);
   }
 }
 
