@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import { clearWorkspaceCache } from "../lib/storage";
 
 type AuthState = {
   user: User | null;
@@ -46,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        clearWorkspaceCache();
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -55,12 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(email: string, password: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
+    clearWorkspaceCache();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return error?.message ?? null;
   }
 
   async function signUp(email: string, password: string, name?: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
+    clearWorkspaceCache();
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
     const trimmedName = name?.trim();
     const { error } = await supabase.auth.signUp({
@@ -76,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signInWithMagicLink(email: string): Promise<string | null> {
     if (!supabase) return "Supabase is not configured";
+    clearWorkspaceCache();
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -97,9 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("darkdesk-workspace-v1");
-    }
+    clearWorkspaceCache();
     if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);

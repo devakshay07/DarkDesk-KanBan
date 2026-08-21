@@ -44,7 +44,7 @@ function SyncBadge({ status }: { status: SyncStatus }) {
 export function KanbanWorkspace() {
   const { user, loading: authLoading, signOut, updateProfile } = useAuth();
   const router = useRouter();
-  const { workspace, activeBoard, commit, updateBoard, undo, canUndo, syncStatus } = useWorkspace(user?.id);
+  const { workspace, activeBoard, commit, updateBoard, undo, canUndo, syncStatus, uploadAndSyncWorkspace } = useWorkspace(user?.id);
   
   const [query, setQuery] = useState("");
   const [priority, setPriority] = useState<Priority | "all">("all");
@@ -155,11 +155,11 @@ export function KanbanWorkspace() {
   function importWorkspace(file?: File) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const imported = JSON.parse(String(reader.result)) as unknown;
         if (!isWorkspace(imported)) throw new Error("Invalid backup");
-        commit(imported);
+        await uploadAndSyncWorkspace(imported);
       } catch { window.alert("That file is not a valid DarkDesk backup."); }
     };
     reader.readAsText(file);
@@ -211,12 +211,10 @@ export function KanbanWorkspace() {
         onImport={importWorkspace}
         onRenameBoard={handleRenameBoard}
         onDeleteBoard={handleDeleteBoard}
-        onResetWorkspace={() => commit(initialWorkspace)}
+        onResetWorkspace={() => uploadAndSyncWorkspace(initialWorkspace)}
         onUpdateName={updateProfile}
       />
     )}
     <BrandingFooter />
   </main>;
 }
-
-

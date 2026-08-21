@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadWorkspace, saveWorkspace } from "../lib/storage";
+import { clearWorkspaceCache, loadWorkspace, saveWorkspace } from "../lib/storage";
 import { supabase } from "../lib/supabase";
 import { fetchWorkspace, uploadWorkspace } from "../lib/supabase-sync";
 import { normalizeWorkspaceUUIDs } from "../lib/kanban";
+import { initialWorkspace } from "../lib/seed";
 import type { Board, Workspace } from "../types/kanban";
 
 export type SyncStatus = "synced" | "syncing" | "offline" | "error";
 
-/** Local-first workspace state with optional Supabase cloud synchronization & realtime multi-device sync. */
+/** Database-first workspace state with auto cache clearing and real-time multi-device sync. */
 export function useWorkspace(userId?: string) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [history, setHistory] = useState<Workspace[]>([]);
@@ -20,7 +21,7 @@ export function useWorkspace(userId?: string) {
   // Debounce timer for cloud sync
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Helper to pull fresh remote data (skipped when this device is uploading)
+  // Helper to pull fresh remote data from database only
   const pullRemoteWorkspace = useCallback(async (client: NonNullable<typeof supabase>, uid: string) => {
     if (isSyncingRef.current) return false; // Skip self-echo
     try {
@@ -28,7 +29,6 @@ export function useWorkspace(userId?: string) {
       if (remote && remote.boards.length > 0) {
         const normalized = normalizeWorkspaceUUIDs(remote);
         setWorkspace(normalized);
-        saveWorkspace(normalized);
         setSyncStatus("synced");
         return true;
       }
@@ -39,7 +39,7 @@ export function useWorkspace(userId?: string) {
     return false;
   }, []);
 
-  // Fetch or migrate remote workspace when userId is present
+  // Fetch from database & handle account switching
   useEffect(() => {
     const client = supabase;
     if (!client || !userId) {
@@ -50,35 +50,37 @@ export function useWorkspace(userId?: string) {
     }
 
     let isMounted = true;
+    
+    // Auto clear cache on account switch / mount
+    clearWorkspaceCache();
+    setWorkspace(null);
+    setHistory([]);
     setSyncStatus("syncing");
 
-    // 1. Fetch remote workspace from Supabase
+    // 1. Fetch remote workspace directly from Supabase database
     fetchWorkspace(client, userId).then(async (remote) => {
       if (!isMounted) return;
 
       if (remote && remote.boards.length > 0) {
+        // Valid user data returned from database
         const normalized = normalizeWorkspaceUUIDs(remote);
         setWorkspace(normalized);
-        saveWorkspace(normalized);
         setSyncStatus("synced");
       } else {
-        const local = normalizeWorkspaceUUIDs(loadWorkspace());
-        if (local && local.boards.length > 0) {
-          try {
-            isSyncingRef.current = true;
-            await uploadWorkspace(client, local, userId);
-            if (isMounted) {
-              setWorkspace(local);
-              saveWorkspace(local);
-              setSyncStatus("synced");
-            }
-          } catch (err) {
-            console.error("[Workspace] Migration failed:", err);
-            if (isMounted) setSyncStatus("error");
-          } finally {
-            // Allow pulls again after a cooldown so Realtime self-echoes settle
-            setTimeout(() => { isSyncingRef.current = false; }, 2000);
+        // New user with no data in database yet - initialize default workspace in DB
+        const defaultWorkspace = normalizeWorkspaceUUIDs(initialWorkspace);
+        try {
+          isSyncingRef.current = true;
+          await uploadWorkspace(client, defaultWorkspace, userId);
+          if (isMounted) {
+            setWorkspace(defaultWorkspace);
+            setSyncStatus("synced");
           }
+        } catch (err) {
+          console.error("[Workspace] Database initialization failed:", err);
+          if (isMounted) setSyncStatus("error");
+        } finally {
+          setTimeout(() => { isSyncingRef.current = false; }, 1500);
         }
       }
     }).catch((err) => {
@@ -114,7 +116,7 @@ export function useWorkspace(userId?: string) {
 
     timerId = setTimeout(poll, 30000);
 
-    // 4. Instant sync on tab focus (user returns to the app)
+    // 4. Instant sync on tab focus
     const handleFocusOrVisibility = () => {
       if (typeof document !== "undefined" && !document.hidden) {
         pullRemoteWorkspace(client, userId);
@@ -137,22 +139,23 @@ export function useWorkspace(userId?: string) {
     };
   }, [userId, pullRemoteWorkspace]);
 
-  // Persist to local storage whenever workspace changes
+  // Save to local storage ONLY in offline mode (when userId is absent)
   useEffect(() => {
-    if (workspace) saveWorkspace(workspace);
-  }, [workspace]);
+    if (!userId && workspace) {
+      saveWorkspace(workspace);
+    }
+  }, [workspace, userId]);
 
   const activeBoard = useMemo(
     () => workspace?.boards.find((board) => board.id === workspace.activeBoardId) || workspace?.boards[0],
     [workspace],
   );
 
-  // Debounced cloud sync: waits 500ms after the last call before uploading
+  // Debounced cloud sync for interactive user actions (add/move/edit task)
   const syncToCloud = useCallback((nextWorkspace: Workspace) => {
     const client = supabase;
     if (!client || !userId) return;
 
-    // Clear any pending debounce
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
 
     setSyncStatus("syncing");
@@ -165,10 +168,32 @@ export function useWorkspace(userId?: string) {
         console.error("[Workspace] Cloud sync failed:", err);
         setSyncStatus("error");
       } finally {
-        // Allow pulls again after Realtime self-echoes settle
-        setTimeout(() => { isSyncingRef.current = false; }, 2000);
+        setTimeout(() => { isSyncingRef.current = false; }, 1500);
       }
     }, 500);
+  }, [userId]);
+
+  // Synchronous immediate cloud upload for file imports & task file uploads
+  const uploadAndSyncWorkspace = useCallback(async (importedWorkspace: Workspace) => {
+    const normalized = normalizeWorkspaceUUIDs(importedWorkspace);
+    setWorkspace(normalized);
+    
+    const client = supabase;
+    if (!client || !userId) return;
+
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    setSyncStatus("syncing");
+    isSyncingRef.current = true;
+
+    try {
+      await uploadWorkspace(client, normalized, userId);
+      setSyncStatus("synced");
+    } catch (err) {
+      console.error("[Workspace] Direct file sync to database failed:", err);
+      setSyncStatus("error");
+    } finally {
+      setTimeout(() => { isSyncingRef.current = false; }, 1500);
+    }
   }, [userId]);
 
   function commit(rawNext: Workspace) {
@@ -205,5 +230,6 @@ export function useWorkspace(userId?: string) {
     undo,
     canUndo: history.length > 0,
     syncStatus,
+    uploadAndSyncWorkspace,
   };
 }
