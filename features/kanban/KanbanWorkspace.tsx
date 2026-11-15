@@ -66,6 +66,38 @@ export function KanbanWorkspace() {
     }
   }, [authLoading, user, router]);
 
+  useEffect(() => {
+    if (activeBoard?.columns?.length) {
+      if (!activeColumnId || !activeBoard.columns.some((c) => c.id === activeColumnId)) {
+        setActiveColumnId(activeBoard.columns[0].id);
+      }
+    }
+  }, [activeBoard, activeColumnId]);
+
+  useEffect(() => {
+    const boardEl = boardRef.current;
+    if (!boardEl || !activeBoard?.columns || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const colId = entry.target.id.replace("column-", "");
+            if (colId) setActiveColumnId(colId);
+          }
+        });
+      },
+      { root: boardEl, threshold: 0.5 }
+    );
+
+    activeBoard.columns.forEach((col) => {
+      const el = document.getElementById(`column-${col.id}`);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [activeBoard]);
+
   if (authLoading || (supabase && !user)) {
     return <main className="loading"><div className="orb" /> Checking authorization…</main>;
   }
@@ -166,38 +198,6 @@ export function KanbanWorkspace() {
     };
     reader.readAsText(file);
   }
-
-  useEffect(() => {
-    if (currentBoard?.columns?.length) {
-      if (!activeColumnId || !currentBoard.columns.some((c) => c.id === activeColumnId)) {
-        setActiveColumnId(currentBoard.columns[0].id);
-      }
-    }
-  }, [currentBoard, activeColumnId]);
-
-  useEffect(() => {
-    const boardEl = boardRef.current;
-    if (!boardEl || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            const colId = entry.target.id.replace("column-", "");
-            if (colId) setActiveColumnId(colId);
-          }
-        });
-      },
-      { root: boardEl, threshold: 0.5 }
-    );
-
-    currentBoard.columns.forEach((col) => {
-      const el = document.getElementById(`column-${col.id}`);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [currentBoard]);
 
   function scrollToColumn(columnId: string) {
     setActiveColumnId(columnId);
