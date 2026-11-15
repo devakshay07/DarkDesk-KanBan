@@ -99,10 +99,264 @@ header { display: flex; align-items: center; justify-content: space-between; min
 .login-submit { margin-top: 0.5rem; padding: 0.7rem; color: #1a1d14; border-radius: 0.44rem; background: var(--lime); box-shadow: 0 0.19rem 0 #8aa31b; font-weight: 800; font-size: 0.81rem; transition: transform 0.15s; }
 .login-submit:active { transform: translateY(0.125rem); box-shadow: none; }
 
-@media (max-width: 52rem) { .content { padding-inline: 1rem; } }
-@media (max-width: 42rem) { .content { padding-block-start: 1.6rem; }.progress-card { display: none; }.toolbar { margin-block-start: 1.6rem; }.search { flex-basis: 100%; }.tool-actions { inline-size: 100%; }.tool-actions button { flex: 1 1 auto; justify-content: center; }.board { grid-template-columns: 1fr; }.column { min-block-size: auto; }.filters { align-items: stretch; }.filter-spacer { display: none; }.filters > span { flex-basis: 100%; }.move-actions button { padding: .5rem; }.move-actions svg { inline-size: 1.1rem; block-size: 1.1rem; }.task { padding: 1rem; }.check { inline-size: 1.25rem; block-size: 1.25rem; }.add-card { min-block-size: 2.75rem; font-size: .75rem; }.modal-actions button { min-block-size: 2.75rem; padding-inline: 1rem; } }
-@media (min-width: 30rem) and (max-width: 42rem) { .board { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+/* Mobile Column Navigation Tabs */
+.mobile-column-tabs { display: none; }
+
+@media (max-width: 52rem) {
+  .content { padding-inline: 1rem; }
+}
+
+@media (max-width: 48rem) {
+  header {
+    min-block-size: 3.75rem !important;
+    padding-inline: 0.85rem !important;
+  }
+  .header-left {
+    gap: 0.65rem !important;
+  }
+  .logo {
+    font-size: 1.05rem !important;
+    padding-inline: 0.25rem !important;
+  }
+  .board-selector-trigger {
+    padding: 0.32rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+  .board-title-text {
+    max-width: 6.8rem !important;
+  }
+  .header-actions {
+    gap: 0.5rem !important;
+  }
+  .content {
+    padding-block-start: 1rem !important;
+    padding-inline: 0.85rem !important;
+  }
+  .title-row {
+    margin-block-end: 0.5rem;
+  }
+  .title-row h1 {
+    font-size: 1.35rem !important;
+    margin-bottom: 0.2rem !important;
+  }
+  .progress-card {
+    display: none !important;
+  }
+  .toolbar {
+    margin-block: 0.75rem 0.5rem !important;
+    gap: 0.5rem !important;
+  }
+  .search {
+    flex-basis: 100% !important;
+    min-block-size: 2.6rem !important;
+  }
+  .search input {
+    font-size: 16px !important; /* Prevents unwanted iOS Safari auto-zoom */
+  }
+  .tool-actions {
+    inline-size: 100% !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+  }
+  .tool-actions button {
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    min-block-size: 2.6rem !important;
+    font-size: 0.78rem !important;
+  }
+  .filters {
+    align-items: stretch !important;
+    margin-block: 0 0.85rem !important;
+    padding: 0.65rem !important;
+  }
+  .filter-spacer {
+    display: none !important;
+  }
+  .filters > span {
+    flex-basis: 100% !important;
+  }
+
+  /* Sticky Mobile Column Tabs Bar */
+  .mobile-column-tabs {
+    display: flex !important;
+    gap: 0.44rem !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding-block: 0.25rem 0.65rem !important;
+    margin-block-end: 0.65rem !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    position: sticky !important;
+    top: 3.75rem !important;
+    z-index: 15 !important;
+    background: linear-gradient(180deg, var(--bg) 85%, transparent 100%) !important;
+  }
+  .mobile-column-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  .mobile-column-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.44rem !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: 2rem !important;
+    background: #181b1d !important;
+    border: 0.0625rem solid #2e3438 !important;
+    color: #92999e !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    flex-shrink: 0 !important;
+    user-select: none !important;
+  }
+  .mobile-column-tab:active {
+    transform: scale(0.96) !important;
+  }
+  .mobile-column-tab.active {
+    background: #24292d !important;
+    border-color: #4b545a !important;
+    color: #f4f5f3 !important;
+    box-shadow: 0 0.25rem 0.8rem #00000045 !important;
+  }
+  .tab-indicator {
+    width: 0.5rem !important;
+    height: 0.5rem !important;
+    border-radius: 50% !important;
+    box-shadow: 0 0 0.35rem currentColor !important;
+    flex-shrink: 0 !important;
+  }
+  .tab-badge {
+    padding: 0.1rem 0.38rem !important;
+    border-radius: 1rem !important;
+    background: #111315 !important;
+    color: #8b9397 !important;
+    font-size: 0.63rem !important;
+    font-family: "DM Mono", monospace !important;
+    line-height: 1.2 !important;
+  }
+  .mobile-column-tab.active .tab-badge {
+    background: #15181a !important;
+    color: var(--lime) !important;
+  }
+
+  /* Horizontal Snap Carousel - No Vertical Column Stacking */
+  .board {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 0.85rem !important;
+    padding-inline: 0.25rem !important;
+    padding-block-end: 2.5rem !important;
+    margin-inline: -0.85rem !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #313639 transparent !important;
+  }
+  .board::-webkit-scrollbar {
+    height: 4px !important;
+  }
+  .board::-webkit-scrollbar-thumb {
+    background: #313639 !important;
+    border-radius: 4px !important;
+  }
+  .column {
+    flex: 0 0 85vw !important;
+    max-width: 23rem !important;
+    min-width: 17.5rem !important;
+    scroll-snap-align: center !important;
+    scroll-snap-stop: always !important;
+    min-block-size: auto !important;
+    max-block-size: calc(100vh - 16rem) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 0.75rem 2.2rem #00000065, 0 0 0 0.0625rem #2e3336 !important;
+  }
+  .task-list {
+    overflow-y: auto !important;
+    max-block-size: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-inline-end: 0.15rem !important;
+    padding-block-end: 0.5rem !important;
+  }
+  .add-column {
+    flex: 0 0 14rem !important;
+    min-height: 12rem !important;
+    scroll-snap-align: center !important;
+    align-self: stretch !important;
+  }
+
+  /* Tactile Mobile Touch Cards */
+  .task {
+    padding: 0.85rem !important;
+    border-radius: 0.56rem !important;
+    background: linear-gradient(145deg, #262b2e, #1f2225) !important;
+    box-shadow: 0 0.35rem 0.8rem #00000030, 0 0.0625rem #ffffff08 !important;
+  }
+  .task-title span {
+    font-size: 0.82rem !important;
+    line-height: 1.45 !important;
+  }
+  .task-title small {
+    font-size: 0.69rem !important;
+    line-height: 1.45 !important;
+    -webkit-line-clamp: 3 !important;
+  }
+  .move-actions {
+    gap: 0.4rem !important;
+    margin-block-start: 0.6rem !important;
+  }
+  .move-actions button {
+    padding: 0.4rem 0.55rem !important;
+    min-inline-size: 2.1rem !important;
+    min-block-size: 2.1rem !important;
+    background: #2a2f32 !important;
+    border: 0.0625rem solid #394044 !important;
+    border-radius: 0.35rem !important;
+    color: #c0c6c9 !important;
+  }
+  .move-actions button:active {
+    background: #394145 !important;
+    transform: scale(0.95);
+  }
+  .move-actions svg {
+    inline-size: 0.95rem !important;
+    block-size: 0.95rem !important;
+  }
+  .check {
+    inline-size: 1.25rem !important;
+    block-size: 1.25rem !important;
+  }
+  .check svg {
+    inline-size: 0.9rem !important;
+    block-size: 0.9rem !important;
+  }
+  .add-card {
+    min-block-size: 2.75rem !important;
+    font-size: 0.78rem !important;
+    justify-content: center !important;
+    border-radius: 0.44rem !important;
+    background: #1e222488 !important;
+    border: 0.0625rem dashed #373e42 !important;
+  }
+  .modal-actions button {
+    min-block-size: 2.75rem !important;
+    padding-inline: 1rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* Dynamic Floating Branding Footer */
 .branding-footer {

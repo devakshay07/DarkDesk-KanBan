@@ -33,11 +33,11 @@ export function KanbanColumn({ column, labels, canMoveBackward, canMoveForward, 
     }
   }
 
-  return <section aria-labelledby={`column-${column.id}`} className="column" onDragOver={(event) => event.preventDefault()} onDrop={(event) => onDrop(event.dataTransfer.getData("task"), column.id)}>
+  return <section id={`column-${column.id}`} aria-labelledby={`column-title-${column.id}`} className="column" onDragOver={(event) => event.preventDefault()} onDrop={(event) => onDrop(event.dataTransfer.getData("task"), column.id)}>
     <div className="column-head">
       <div>
         <i style={{ background: column.color }} />
-        <strong id={`column-${column.id}`} className="clickable-title" title="Click to rename" onClick={handleRename}>{column.title}</strong>
+        <strong id={`column-title-${column.id}`} className="clickable-title" title="Click to rename" onClick={handleRename}>{column.title}</strong>
         <span>{column.tasks.length}</span>
       </div>
       <div className="column-head-actions">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CirclePlus, LogOut, Settings2, Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
 import { BoardToolbar } from "./components/BoardToolbar";
@@ -52,6 +52,8 @@ export function KanbanWorkspace() {
   const [showFilters, setShowFilters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [greeting, setGreeting] = useState("Good day");
+  const [activeColumnId, setActiveColumnId] = useState<string>("");
+  const boardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setGreeting(getGreeting());
@@ -165,6 +167,46 @@ export function KanbanWorkspace() {
     reader.readAsText(file);
   }
 
+  useEffect(() => {
+    if (currentBoard?.columns?.length) {
+      if (!activeColumnId || !currentBoard.columns.some((c) => c.id === activeColumnId)) {
+        setActiveColumnId(currentBoard.columns[0].id);
+      }
+    }
+  }, [currentBoard, activeColumnId]);
+
+  useEffect(() => {
+    const boardEl = boardRef.current;
+    if (!boardEl || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const colId = entry.target.id.replace("column-", "");
+            if (colId) setActiveColumnId(colId);
+          }
+        });
+      },
+      { root: boardEl, threshold: 0.5 }
+    );
+
+    currentBoard.columns.forEach((col) => {
+      const el = document.getElementById(`column-${col.id}`);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [currentBoard]);
+
+  function scrollToColumn(columnId: string) {
+    setActiveColumnId(columnId);
+    const element = document.getElementById(`column-${columnId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }
+
   return <main className="app-shell">
     <section className="workspace">
       <header>
@@ -193,7 +235,27 @@ export function KanbanWorkspace() {
         <div aria-label={`${completedCount} of ${allTasks.length} tasks complete`} className="progress-card"><span>{completedCount}/{allTasks.length} tasks complete</span><div><i style={{ width: allTasks.length ? `${completedCount / allTasks.length * 100}%` : "0%" }} /></div></div></div>
         <BoardToolbar canUndo={canUndo} onAddTask={() => currentBoard.columns[0] && openNewTask(currentBoard.columns[0].id)} onExport={exportWorkspace} onImport={importWorkspace}
           onPriorityChange={setPriority} onQueryChange={setQuery} onToggleFilters={() => setShowFilters((visible) => !visible)} onUndo={undo} priority={priority} query={query} showFilters={showFilters} />
-        <div aria-label={`${currentBoard.title} board`} className="board">{currentBoard.columns.map((column, index) => <KanbanColumn key={column.id} column={filterColumn(column, query, priority)} labels={currentWorkspace.labels}
+        <nav className="mobile-column-tabs" role="tablist" aria-label="Columns">
+          {currentBoard.columns.map((column) => {
+            const colTasks = filterColumn(column, query, priority).tasks;
+            const isActive = activeColumnId === column.id || (!activeColumnId && column.id === currentBoard.columns[0]?.id);
+            return (
+              <button
+                key={column.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`mobile-column-tab ${isActive ? "active" : ""}`}
+                onClick={() => scrollToColumn(column.id)}
+              >
+                <span className="tab-indicator" style={{ background: column.color }} />
+                <span className="tab-title">{column.title}</span>
+                <span className="tab-badge">{colTasks.length}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div aria-label={`${currentBoard.title} board`} className="board" ref={boardRef}>{currentBoard.columns.map((column, index) => <KanbanColumn key={column.id} column={filterColumn(column, query, priority)} labels={currentWorkspace.labels}
           canMoveBackward={index > 0} canMoveForward={index < currentBoard.columns.length - 1} onAdd={() => openNewTask(column.id)} onEdit={(task) => setEditor({ columnId: column.id, task })}
           onDrop={(taskId, destinationId) => replaceBoard(moveTask(currentBoard, taskId, destinationId))} onMove={(taskId, direction) => moveTaskByDirection(taskId, column.id, direction)} onToggle={(task) => saveTask({ ...task, completed: !task.completed }, column.id)} onDelete={handleDeleteTask} onRenameColumn={handleRenameColumn} onDeleteColumn={handleDeleteColumn} />)}
           <button className="add-column" onClick={createNewColumn}><CirclePlus /> Add column</button></div>
